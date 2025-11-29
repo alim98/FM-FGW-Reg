@@ -111,42 +111,35 @@ class FGWSolver:
         
         # Solve FGW using POT
         try:
+            # NOTE: POT's fused_gromov_wasserstein does NOT directly support epsilon
+            # It uses conditional gradient method, not entropic regularization
+            T, log = ot.gromov.fused_gromov_wasserstein(
+                M=C_feat_norm,
+                C1=D_f_norm,
+                C2=D_m_norm,
+                p=p,
+                q=q,
+                loss_fun=self.loss_fun,
+                alpha=self.alpha,
+                armijo=False,
+                G0=None,
+                log=True,
+                max_iter=self.max_iter,  # ✅ Correct parameter name
+                tol_rel=self.tol,
+                tol_abs=self.tol,
+            )
+            
+            # If entropic regularization requested, apply Sinkhorn post-processing
+            # This is a workaround since POT's FGW doesn't have built-in entropic version
             if self.epsilon > 0:
-                # Entropic regularized FGW
-                T, log = ot.gromov.fused_gromov_wasserstein(
-                    M=C_feat_norm,
-                    C1=D_f_norm,
-                    C2=D_m_norm,
-                    p=p,
-                    q=q,
-                    loss_fun=self.loss_fun,
-                    alpha=self.alpha,
-                    armijo=False,
-                    G0=None,
-                    log=True,
-                    numItermax=self.max_iter,
-                    tol_rel=self.tol,
-                    tol_abs=self.tol,
-                    verbose=self.verbose,
-                )
-            else:
-                # Non-regularized (may be slower)
-                T, log = ot.gromov.fused_gromov_wasserstein(
-                    M=C_feat_norm,
-                    C1=D_f_norm,
-                    C2=D_m_norm,
-                    p=p,
-                    q=q,
-                    loss_fun=self.loss_fun,
-                    alpha=self.alpha,
-                    armijo=True,
-                    G0=None,
-                    log=True,
-                    numItermax=self.max_iter,
-                    tol_rel=self.tol,
-                    tol_abs=self.tol,
-                    verbose=self.verbose,
-                )
+                try:
+                    T_entropic = ot.bregman.sinkhorn(
+                        p, q, C_feat_norm, reg=self.epsilon, numItermax=100
+                    )
+                    # Blend with FGW solution to maintain some structural info
+                    T = 0.7 * T + 0.3 * T_entropic
+                except Exception as e:
+                    warnings.warn(f"Entropic projection failed: {e}, using pure FGW")
             
             # Check convergence
             if 'fgw_dist' in log:

@@ -53,7 +53,7 @@ class InterpolationConfig:
     """Configuration for DVF interpolation."""
     method: str = 'rbf'  # 'rbf', 'tps', or 'bspline'
     smoothing: float = 0.0  # RBF smoothing parameter
-    rbf_kernel: str = 'thin_plate'  # 'thin_plate', 'multiquadric', etc.
+    rbf_kernel: str = 'thin_plate_spline'  # Must match scipy: 'thin_plate_spline', 'multiquadric', etc.
 
 
 @dataclass

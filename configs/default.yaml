@@ -27,7 +27,7 @@ fgw:
 interpolation:
   method: rbf
   smoothing: 0.0
-  rbf_kernel: thin_plate
+  rbf_kernel: thin_plate_spline  # Must match scipy.interpolate.RBFInterpolator kernel names
 
 use_cache: true
 cache_dir: ~/.fmfgwreg_cache

@@ -15,7 +15,7 @@ from fmfgwreg.features.base import FeatureExtractor
 from fmfgwreg.core.cache import FeatureCache
 
 
-class DINOv3Extractor(FeatureExtractor):
+class DINOv2Extractor(FeatureExtractor):
     """
     DINOv3 feature extractor for 3D medical images.
     
@@ -79,10 +79,13 @@ class DINOv3Extractor(FeatureExtractor):
                 # Try to get features
                 features = self.model.forward_features(dummy_input)
                 
-                # Features from ViT are usually (B, N+1, D) where N is num patches
-                # Remove CLS token if present
+                # DINOv2 returns a dict with keys like 'x_norm_clstoken', 'x_norm_patchtokens'
+                if isinstance(features, dict):
+                    # Use patch tokens (without CLS token)
+                    features = features['x_norm_patchtokens']
+                
+                # Features from ViT are usually (B, N, D) where N is num patches
                 if len(features.shape) == 3:
-                    features = features[:, 1:, :]  # Remove CLS token
                     self.feature_dim = features.shape[-1]
                 else:
                     self.feature_dim = features.shape[1]
@@ -94,6 +97,7 @@ class DINOv3Extractor(FeatureExtractor):
                 volume: np.ndarray,
                 spacing: Tuple[float, float, float],
                 volume_id: Optional[str] = None,
+                intensity_config: Optional[dict] = None,
                 ) -> np.ndarray:
         """
         Extract DINOv3 features from volume.
@@ -111,7 +115,11 @@ class DINOv3Extractor(FeatureExtractor):
             cache_key = self.cache.get_cache_key(
                 volume_path=volume_id,
                 model_name=self.model_name,
-                config_dict={'input_size': self.input_size}
+                config_dict={
+                    'input_size': self.input_size,
+                    'aggregation': self.aggregation,
+                },
+                intensity_config=intensity_config,  # CRITICAL: include preprocessing
             )
             cached = self.cache.load(cache_key)
             if cached is not None:
@@ -168,10 +176,14 @@ class DINOv3Extractor(FeatureExtractor):
                 try:
                     features = self.model.forward_features(slice_rgb)
                     
+                    # DINOv2 returns a dict with keys like 'x_norm_clstoken', 'x_norm_patchtokens'
+                    if isinstance(features, dict):
+                        # Use patch tokens (without CLS token)
+                        features = features['x_norm_patchtokens']
+                    
                     # Handle different output formats
                     if len(features.shape) == 3:
-                        # (B, N+1, D) - remove CLS token
-                        features = features[:, 1:, :]
+                        # (B, N, D) - patch tokens only
                         # Reshape to (B, H_out, W_out, D)
                         features = features.reshape(1, H_out, W_out, -1)
                     elif len(features.shape) == 4:
@@ -182,6 +194,8 @@ class DINOv3Extractor(FeatureExtractor):
                     
                 except Exception as e:
                     warnings.warn(f"Feature extraction failed for slice {d}: {e}")
+                    import traceback
+                    traceback.print_exc()
                     # Use dummy features
                     slice_features.append(np.zeros((H_out, W_out, self.feature_dim)))
         

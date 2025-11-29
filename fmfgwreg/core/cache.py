@@ -41,15 +41,20 @@ class FeatureCache:
                      volume_hash: Optional[str] = None,
                      model_name: str = 'dinov2_vitb14',
                      config_dict: Optional[Dict[str, Any]] = None,
+                     intensity_config: Optional[Dict[str, Any]] = None,
                      ) -> str:
         """
         Generate unique cache key.
+        
+        CRITICAL: Must include ALL settings that affect the extracted features,
+        including intensity normalization applied BEFORE feature extraction.
         
         Args:
             volume_path: Path to volume file
             volume_hash: Pre-computed hash of volume data
             model_name: Name of foundation model
-            config_dict: Configuration dictionary
+            config_dict: Feature extraction configuration
+            intensity_config: Intensity normalization configuration (IMPORTANT!)
             
         Returns:
             Cache key string
@@ -68,6 +73,13 @@ class FeatureCache:
         
         if volume_hash is not None:
             key_parts.append(volume_hash)
+        
+        # CRITICAL: Include intensity config in cache key
+        # Different normalization = different input to model = different features
+        if intensity_config is not None:
+            intensity_str = json.dumps(intensity_config, sort_keys=True)
+            intensity_hash = hashlib.md5(intensity_str.encode()).hexdigest()[:8]
+            key_parts.append(f"intensity_{intensity_hash}")
         
         if config_dict is not None:
             # Hash config

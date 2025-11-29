@@ -21,6 +21,25 @@ Unlike traditional feature-based registration (e.g., DINO-Reg), FM-FGW-Reg perfo
 
 ## Installation
 
+### Option 1: Conda Environment (Recommended)
+
+```bash
+# Clone repository
+git clone https://github.com/alim98/fmfgwreg.git
+cd fmfgwreg
+
+# Create conda environment from file
+conda env create -f environment.yml -p /path/to/your/envs/fmfgwreg
+
+# Activate environment
+conda activate /path/to/your/envs/fmfgwreg
+
+# Install FM-FGW-Reg in development mode
+pip install -e .
+```
+
+### Option 2: Pip Installation
+
 ```bash
 # Clone repository
 git clone https://github.com/alim98/fmfgwreg.git
@@ -124,4 +143,11 @@ MIT License - see LICENSE file for details.
 - Python Optimal Transport (POT) library
 - SimpleITK for medical image processing
 
-# FM-FGW-Reg
+## Environment Details
+
+See `environment.yml` for the complete list of dependencies. Key requirements:
+- Python 3.10
+- PyTorch >= 2.0.0 (with CUDA support)
+- POT >= 0.9.0
+- SimpleITK >= 2.3.0
+- nibabel >= 5.0.0

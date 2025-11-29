@@ -12,7 +12,7 @@ import time
 from fmfgwreg.core.config import RegistrationConfig
 from fmfgwreg.core.cache import FeatureCache
 from fmfgwreg.preprocessing import normalize_intensity, rigid_alignment
-from fmfgwreg.features import DINOv3Extractor, normalize_features
+from fmfgwreg.features import DINOv2Extractor, normalize_features
 from fmfgwreg.graph import sample_graph, CostMatrixBuilder
 from fmfgwreg.optimal_transport import FGWSolver, analyze_coupling
 from fmfgwreg.deformation import (
@@ -50,7 +50,7 @@ class FMFGWReg:
             self.cache = None
         
         # Initialize feature extractor
-        self.feature_extractor = DINOv3Extractor(
+        self.feature_extractor = DINOv2Extractor(
             model_name=self.config.feature.model_name,
             device=self.config.feature.device,
             input_size=self.config.feature.input_size,
@@ -173,8 +173,22 @@ class FMFGWReg:
             print("[3/9] Extracting foundation model features...")
         t0 = time.time()
         
-        feat_f = self.feature_extractor.extract(fixed_norm, fixed_spacing, fixed_id)
-        feat_m = self.feature_extractor.extract(moving_rigid, moving_spacing, moving_id)
+        # CRITICAL: Pass intensity config to cache key generation
+        # Different normalization settings = different features
+        intensity_config_dict = {
+            'method': self.config.intensity.method,
+            'percentile_clip': self.config.intensity.percentile_clip,
+            'target_range': self.config.intensity.target_range,
+        }
+        
+        feat_f = self.feature_extractor.extract(
+            fixed_norm, fixed_spacing, fixed_id,
+            intensity_config=intensity_config_dict
+        )
+        feat_m = self.feature_extractor.extract(
+            moving_rigid, moving_spacing, moving_id,
+            intensity_config=intensity_config_dict
+        )
         
         if self.config.verbose:
             print(f"    Fixed features shape: {feat_f.shape}")
@@ -191,6 +205,10 @@ class FMFGWReg:
             print("[4/9] Sampling graph nodes...")
         t0 = time.time()
         
+        # CRITICAL: After rigid pre-alignment, moving is resampled to fixed grid
+        # So for geometric consistency, use fixed_spacing for moving graph too
+        moving_spacing_for_graph = fixed_spacing if do_rigid_prealign else moving_spacing
+        
         coords_f, node_feat_f = sample_graph(
             feat_f,
             num_nodes=self.config.graph.num_nodes,
@@ -203,7 +221,7 @@ class FMFGWReg:
             feat_m,
             num_nodes=self.config.graph.num_nodes,
             method=self.config.graph.sampling_method,
-            spacing=moving_spacing,
+            spacing=moving_spacing_for_graph,  # Fixed spacing after rigid alignment
             min_spacing=self.config.graph.min_spacing,
         )
         
@@ -221,7 +239,7 @@ class FMFGWReg:
         C_feat = self.cost_builder.build_feature_cost(node_feat_f, node_feat_m)
         D_f, D_m = self.cost_builder.build_structure_matrices(
             coords_f, coords_m,
-            fixed_spacing, moving_spacing,
+            fixed_spacing, moving_spacing_for_graph,  # Use corrected spacing
         )
         
         if self.config.verbose:
