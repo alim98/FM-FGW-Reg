@@ -88,3 +88,6 @@ tmp/
 temp/
 *.tmp
 
+
+test_*
+check*

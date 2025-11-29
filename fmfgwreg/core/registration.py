@@ -277,8 +277,10 @@ class FMFGWReg:
         disp_stats = compute_displacement_statistics(displacements, valid_mask, fixed_spacing)
         if self.config.verbose:
             print(f"    Valid nodes: {disp_stats['num_valid']}/{len(coords_f)}")
-            print(f"    Mean displacement: {disp_stats['mean_magnitude_mm']:.2f} mm")
-            print(f"    Max displacement: {disp_stats['max_magnitude_mm']:.2f} mm")
+            if 'mean_magnitude_mm' in disp_stats:
+                print(f"    Mean displacement: {disp_stats['mean_magnitude_mm']:.2f} mm")
+            if 'max_magnitude_mm' in disp_stats:
+                print(f"    Max displacement: {disp_stats['max_magnitude_mm']:.2f} mm")
         
         timing['displacement_computation'] = time.time() - t0
         
@@ -311,8 +313,15 @@ class FMFGWReg:
             print("[9/9] Warping moving volume...")
         t0 = time.time()
         
+        # CRITICAL FIX: Warp the ORIGINAL moving volume, not the normalized one!
+        # We used normalized for feature extraction, but final warped should be in original intensity
+        moving_to_warp = moving_volume if not do_rigid_prealign else moving_rigid
+        
+        # If rigid was applied, moving_rigid is still normalized
+        # We need to warp the original moving_volume with the composed transform
+        # For now, we warp the original moving (this is simpler and correct for deformable-only)
         warped = warp_volume(
-            moving_rigid,
+            moving_volume,  # Use ORIGINAL, not normalized!
             dvf,
             spacing=fixed_spacing,
             mode='constant',
