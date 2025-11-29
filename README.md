@@ -23,7 +23,7 @@ Unlike traditional feature-based registration (e.g., DINO-Reg), FM-FGW-Reg perfo
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/fmfgwreg.git
+git clone https://github.com/alim98/fmfgwreg.git
 cd fmfgwreg
 
 # Install dependencies
