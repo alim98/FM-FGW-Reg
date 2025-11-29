@@ -1,0 +1,37 @@
+intensity:
+  method: zscore
+  percentile_clip: [1, 99]
+  target_range: null
+  use_mask: false
+
+feature:
+  model_name: dinov2_vitb14
+  device: cuda
+  input_size: 224
+  aggregation: mean
+  num_slices: null
+
+graph:
+  num_nodes: 1000
+  sampling_method: variance
+  min_spacing: 5.0
+
+fgw:
+  alpha: 0.5
+  epsilon: 0.01
+  max_iter: 100
+  tol: 1.0e-7
+  max_nodes: 2000
+  loss_fun: square_loss
+
+interpolation:
+  method: rbf
+  smoothing: 0.0
+  rbf_kernel: thin_plate
+
+use_cache: true
+cache_dir: ~/.fmfgwreg_cache
+outlier_threshold: 0.01
+rigid_prealign: true
+verbose: true
+
